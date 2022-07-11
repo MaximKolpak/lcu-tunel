@@ -1,13 +1,15 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const crypto = require('crypto');
+const util = require('node:util');
 const options = require('./options');
 
 
 const pathlockfile = '/Applications/League of Legends.app/Contents/LoL/lockfile';
 
 const lf = {
-    adress      :'127.0.0.1',
+    address      : '127.0.0.1',
     port        : '',
     username    : 'riot',
     password    : '',
@@ -17,9 +19,12 @@ const lf = {
 
 LoadLockFile(pathlockfile);
 
+//Allow all certificates 
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
 //Create listem server 
 http.createServer(function(req,res){
-    console.log(lf);
+    tunnel(req.url, req.method, res)
 }).listen(options.port, options.ip);
 
 function LoadLockFile(path){
@@ -56,6 +61,26 @@ function getSumSync(path){
     }
 }
 
-function tunnel(){
-
+function tunnel(url, method, tunnelres){
+    let tunnelOptions = {
+        hostname: lf.address,
+        port: Number(lf.port),
+        path: url,
+        method: method,
+        headers: {
+            Authorization: `Basic ${Buffer.from(util.format('%s:%s', lf.username, lf.password)).toString('base64')}`
+        },
+        protocol: `${lf.protocol}:`
+    }
+    console.log(`Redirected from \x1b[32m${options.ip}:8080\x1b[0m TO \x1b[32m${lf.address}:${lf.port}\x1b[0m with ${method} method.`);
+    let req = https.request(tunnelOptions, res => {
+        res.on('data', d => {
+            tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json'});
+            tunnelres.end(d.toString());
+        });
+    });
+    req.on('error', e => {
+        console.log(e);
+    });
+    req.end();
 }
