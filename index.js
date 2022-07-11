@@ -4,6 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const util = require('node:util');
 const options = require('./options');
+const { Console } = require('console');
 
 
 const pathlockfile = '/Applications/League of Legends.app/Contents/LoL/lockfile';
@@ -24,7 +25,8 @@ process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 //Create listem server 
 http.createServer(function(req,res){
-    tunnel(req.url, req.method, res)
+    tunnel(req.url, req.method, res);
+    console.log(`Redirected: \x1b[32m${options.ip}:8080\x1b[0m >> \x1b[32m${lf.address}:${lf.port}\x1b[0m [${req.method}](${req.url})`)
 }).listen(options.port, options.ip);
 
 function LoadLockFile(path){
@@ -32,6 +34,7 @@ function LoadLockFile(path){
         if(fs.existsSync(path)){
             let sum = getSumSync(path);
             if(sum != lf.hashSum){
+                console.log(`Changed sum \x1b[32m${lf.hashSum}\x1b[0m to \x1b[32m${sum}\x1b[0m`);
                 lf.hashSum = sum;
                 fs.readFile(path, 'utf-8', (err, data) => {
                     if(err){
@@ -72,15 +75,20 @@ function tunnel(url, method, tunnelres){
         },
         protocol: `${lf.protocol}:`
     }
-    console.log(`Redirected from \x1b[32m${options.ip}:8080\x1b[0m TO \x1b[32m${lf.address}:${lf.port}\x1b[0m with ${method} method.`);
-    let req = https.request(tunnelOptions, res => {
-        res.on('data', d => {
-            tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json'});
-            tunnelres.end(d.toString());
+    try{
+        let req = https.request(tunnelOptions, res => {
+            res.on('data', d => {
+                tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json'});
+                tunnelres.end(d.toString());
+            });
         });
-    });
-    req.on('error', e => {
-        console.log(e);
-    });
-    req.end();
+        req.on('error', () => {
+            tunnelres.writeHead(500, {'Content-Type': 'text/json'});
+            tunnelres.end('error');
+        });
+        req.end();
+    }catch{
+        tunnelres.writeHead(500, {'Content-Type': 'text/json'});
+        tunnelres.end("error");
+    }
 }
