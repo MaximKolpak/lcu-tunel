@@ -78,17 +78,17 @@ function tunnel(url, method, tunnelres){
     try{
         let req = https.request(tunnelOptions, res => {
             res.on('data', d => {
-                tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json'});
+                tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json; charset=utf-8'});
                 tunnelres.end(d.toString());
             });
         });
         req.on('error', () => {
-            tunnelres.writeHead(500, {'Content-Type': 'text/json'});
+            tunnelres.writeHead(500, {'Content-Type': 'text/json; charset=utf-8'});
             tunnelres.end('error');
         });
         req.end();
     }catch{
-        tunnelres.writeHead(500, {'Content-Type': 'text/json'});
+        tunnelres.writeHead(500, {'Content-Type': 'text/json; charset=utf-8'});
         tunnelres.end("error");
     }
 }
