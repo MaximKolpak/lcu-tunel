@@ -10,12 +10,12 @@ const { Console } = require('console');
 const pathlockfile = '/Applications/League of Legends.app/Contents/LoL/lockfile';
 
 const lf = {
-    address      : '127.0.0.1',
-    port        : '',
-    username    : 'riot',
-    password    : '',
-    protocol    : '',
-    hashSum     : ''
+    address: '127.0.0.1',
+    port: '',
+    username: 'riot',
+    password: '',
+    protocol: '',
+    hashSum: ''
 }
 
 LoadLockFile(pathlockfile);
@@ -24,20 +24,26 @@ LoadLockFile(pathlockfile);
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 //Create listem server 
-http.createServer(function(req,res){
-    tunnel(req.url, req.method, res);
-    console.log(`Redirected: \x1b[32m${options.ip}:8080\x1b[0m >> \x1b[32m${lf.address}:${lf.port}\x1b[0m [${req.method}](${req.url})`)
+http.createServer(function (req, res) {
+    let body = "";
+    req.on('data', function (data) {
+        body += data
+    });
+    req.on('end', function(){
+        tunnel(req.url, req.method, res, body);
+        console.log(`Redirected: \x1b[32m${options.ip}:8080\x1b[0m >> \x1b[32m${lf.address}:${lf.port}\x1b[0m [${req.method}](${req.url})`)
+    });
 }).listen(options.port, options.ip);
 
-function LoadLockFile(path){
-    setInterval(()=>{
-        if(fs.existsSync(path)){
+function LoadLockFile(path) {
+    setInterval(() => {
+        if (fs.existsSync(path)) {
             let sum = getSumSync(path);
-            if(sum != lf.hashSum){
+            if (sum != lf.hashSum) {
                 console.log(`Changed sum \x1b[32m${lf.hashSum}\x1b[0m to \x1b[32m${sum}\x1b[0m`);
                 lf.hashSum = sum;
                 fs.readFile(path, 'utf-8', (err, data) => {
-                    if(err){
+                    if (err) {
                         console.error(err);
                         return;
                     }
@@ -46,15 +52,15 @@ function LoadLockFile(path){
 
                     lf.port = splited[2];
                     lf.password = splited[3];
-                    lf.protocol = splited [4]
+                    lf.protocol = splited[4]
                 });
             }
         }
-    },options.interval);
+    }, options.interval);
 }
 
-function getSumSync(path){
-    if(fs.existsSync(path)){
+function getSumSync(path) {
+    if (fs.existsSync(path)) {
         const fileBuffer = fs.readFileSync(path);
         const hashSum = crypto.createHash('sha256');
         hashSum.update(fileBuffer);
@@ -64,7 +70,7 @@ function getSumSync(path){
     }
 }
 
-function tunnel(url, method, tunnelres){
+function tunnel(url, method, tunnelres, postdata) {
     let tunnelOptions = {
         hostname: lf.address,
         port: Number(lf.port),
@@ -75,20 +81,27 @@ function tunnel(url, method, tunnelres){
         },
         protocol: `${lf.protocol}:`
     }
-    try{
+    try {
+
         let req = https.request(tunnelOptions, res => {
+            let data = "";
             res.on('data', d => {
-                tunnelres.writeHead(res.statusCode, {'Content-Type': 'text/json; charset=utf-8'});
-                tunnelres.end(d.toString());
+                tunnelres.writeHead(res.statusCode, { 'Content-Type': 'text/json; charset=utf-8' });
+                data += d;
+            });
+
+            res.on('end', () => {
+                tunnelres.end(data);
             });
         });
+        req.write(postdata);
         req.on('error', () => {
-            tunnelres.writeHead(500, {'Content-Type': 'text/json; charset=utf-8'});
+            tunnelres.writeHead(500, { 'Content-Type': 'text/json; charset=utf-8' });
             tunnelres.end('error');
         });
         req.end();
-    }catch{
-        tunnelres.writeHead(500, {'Content-Type': 'text/json; charset=utf-8'});
+    } catch {
+        tunnelres.writeHead(500, { 'Content-Type': 'text/json; charset=utf-8' });
         tunnelres.end("error");
     }
 }
